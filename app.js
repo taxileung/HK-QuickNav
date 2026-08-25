@@ -3,8 +3,6 @@ const placeInput = document.querySelector("#place-input");
 const searchButton = document.querySelector("#search-button");
 const searchStatus = document.querySelector("#search-status");
 const searchResults = document.querySelector("#search-results");
-const pasteButton = document.querySelector("#paste-button");
-const pasteLabel = document.querySelector("#paste-label");
 const googleButton = document.querySelector("#google-button");
 const amapButton = document.querySelector("#amap-button");
 const wazeButton = document.querySelector("#waze-button");
@@ -75,18 +73,6 @@ placeInput.addEventListener("input", () => {
   searchPlaces(query, AUTO_SEARCH_RESULTS_LIMIT);
 });
 
-pasteButton.addEventListener("click", async () => {
-  const pasteRequestId = startSelectionRequest();
-  setSearchLoading(false);
-
-  const rawText = await readMyMapText();
-  if (!rawText || pasteRequestId !== activeSelectionId) {
-    return;
-  }
-
-  prepareDestination(rawText);
-});
-
 googleButton.addEventListener("click", () => {
   if (!readyDestination) {
     return;
@@ -115,20 +101,6 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) {
     applyTheme(getAutomaticThemeMode());
   }
-});
-
-window.addEventListener("paste", (event) => {
-  if (isEditableTarget(event.target)) {
-    return;
-  }
-
-  const rawText = event.clipboardData?.getData("text");
-  if (!rawText?.trim()) {
-    return;
-  }
-
-  event.preventDefault();
-  prepareDestination(rawText);
 });
 
 function initializeTheme() {
@@ -325,7 +297,7 @@ async function selectPlace(place) {
       throw new Error(result.message);
     }
 
-    setReadyDestination({ ...result, name: place.name }, "已選擇", `已選擇${place.name}。`);
+    setReadyDestination({ ...result, name: place.name }, `已選擇${place.name}。`);
     clearSearchResults();
     setSearchStatus(`已選擇：${place.name}`);
   } catch (error) {
@@ -396,154 +368,6 @@ async function fetchJsonWithTimeout(url, timeoutMs, signal) {
   }
 }
 
-async function readMyMapText() {
-  try {
-    if (navigator.clipboard?.readText) {
-      const clipboardText = await navigator.clipboard.readText();
-      if (clipboardText.trim()) {
-        return clipboardText;
-      }
-
-      resetState();
-      window.alert("請先在 MyMapHK 長按位置，複製座標。");
-      announce("請先在 MyMapHK 長按位置，複製座標。");
-      return null;
-    }
-  } catch (error) {
-    resetState();
-    window.alert("未能讀取剪貼簿。請先在 MyMapHK 長按位置複製，然後再回來按貼上。");
-    announce("未能讀取剪貼簿。請先在 MyMapHK 長按位置複製。");
-    return null;
-  }
-
-  resetState();
-  window.alert("這個瀏覽器不支援直接讀取剪貼簿。請改用支援剪貼簿的瀏覽器開啟。");
-  announce("這個瀏覽器不支援直接讀取剪貼簿。");
-  return null;
-}
-
-function prepareDestination(rawText) {
-  cancelActiveSearch();
-  activeSelectionId += 1;
-  setSearchLoading(false);
-
-  const result = parseCoordinateBlock(rawText);
-  if (!result.ok) {
-    resetState();
-    window.alert("剪貼簿內容不是 MyMapHK 座標，請重新在 MyMapHK 長按位置複製。");
-    announce("剪貼簿內容不是 MyMapHK 座標。");
-    return;
-  }
-
-  clearSearchResults();
-  setSearchStatus("");
-  setReadyDestination(result, "已貼上", "已準備導航。");
-}
-
-function parseCoordinateBlock(rawText) {
-  const normalized = normalizeInput(rawText);
-  const wgs84Line = normalized.match(/WGS84.+/i)?.[0] ?? normalized;
-
-  const decimalResult = parseDecimalDegrees(wgs84Line);
-  if (decimalResult) {
-    return decimalResult;
-  }
-
-  const dmsResult = parseDegreeMinuteSecond(wgs84Line);
-  if (dmsResult) {
-    return dmsResult;
-  }
-
-  const dmmResult = parseDegreeDecimalMinutes(wgs84Line);
-  if (dmmResult) {
-    return dmmResult;
-  }
-
-  const rawLatLng = parseSimpleLatLng(normalized);
-  if (rawLatLng) {
-    return rawLatLng;
-  }
-
-  return {
-    ok: false,
-    message: "找不到可用的 WGS84 緯度與經度。請確認貼上的是 MyMapHK 複製的完整文字。",
-  };
-}
-
-function normalizeInput(text) {
-  return text
-    .replace(/\r/g, "")
-    .replace(/[’′]/g, "'")
-    .replace(/[”″]/g, '"')
-    .replace(/[，]/g, ",")
-    .replace(/[°º]/g, "°")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function parseDecimalDegrees(text) {
-  const match = text.match(/Lat:\s*([+-]?\d+(?:\.\d+)?)\s*([NS])?\s*Long:\s*([+-]?\d+(?:\.\d+)?)\s*([EW])?/i);
-  if (!match) {
-    return null;
-  }
-
-  const latitude = applyHemisphere(Number(match[1]), match[2], "NS");
-  const longitude = applyHemisphere(Number(match[3]), match[4], "EW");
-
-  return buildSuccessResult(latitude, longitude, "十進位度數");
-}
-
-function parseDegreeDecimalMinutes(text) {
-  const match = text.match(/Lat:\s*(\d{1,3})\s*°\s*([\d.]+)\s*'\s*([NS])?\s*Long:\s*(\d{1,3})\s*°\s*([\d.]+)\s*'\s*([EW])?/i);
-  if (!match) {
-    return null;
-  }
-
-  const latitude = applyHemisphere(Number(match[1]) + Number(match[2]) / 60, match[3], "NS");
-  const longitude = applyHemisphere(Number(match[4]) + Number(match[5]) / 60, match[6], "EW");
-
-  return buildSuccessResult(latitude, longitude, "度分");
-}
-
-function parseDegreeMinuteSecond(text) {
-  const match = text.match(/Lat:\s*(\d{1,3})\s*°\s*(\d{1,2})\s*'\s*([\d.]+)\s*"\s*([NS])?\s*Long:\s*(\d{1,3})\s*°\s*(\d{1,2})\s*'\s*([\d.]+)\s*"\s*([EW])?/i);
-  if (!match) {
-    return null;
-  }
-
-  const latitude = applyHemisphere(
-    Number(match[1]) + Number(match[2]) / 60 + Number(match[3]) / 3600,
-    match[4],
-    "NS",
-  );
-  const longitude = applyHemisphere(
-    Number(match[5]) + Number(match[6]) / 60 + Number(match[7]) / 3600,
-    match[8],
-    "EW",
-  );
-
-  return buildSuccessResult(latitude, longitude, "度分秒");
-}
-
-function parseSimpleLatLng(text) {
-  const match = text.match(/([+-]?\d+\.\d+)\s*,\s*([+-]?\d+\.\d+)/);
-  if (!match) {
-    return null;
-  }
-
-  return buildSuccessResult(Number(match[1]), Number(match[2]), "純座標");
-}
-
-function applyHemisphere(value, hemisphere, axis) {
-  if (!hemisphere) {
-    return value;
-  }
-
-  const upper = hemisphere.toUpperCase();
-  const isPositive = axis === "NS" ? upper === "N" : upper === "E";
-  return isPositive ? Math.abs(value) : -Math.abs(value);
-}
-
 function buildSuccessResult(latitude, longitude, sourceFormat) {
   if (!isValidCoordinate(latitude, longitude)) {
     return {
@@ -581,11 +405,11 @@ function buildGoogleMapsDirectionUrl(latitudeText, longitudeText) {
 
 function buildAmapWebUrl(latitudeText, longitudeText, name) {
   const destination = `${longitudeText},${latitudeText},${name || "目的地"}`;
-  return `https://uri.amap.com/navigation?to=${encodeURIComponent(destination)}&mode=car&policy=0&src=MyMapHKNav`;
+  return `https://uri.amap.com/navigation?to=${encodeURIComponent(destination)}&mode=car&policy=0&src=HKPlaceNav`;
 }
 
 function buildWazeUrl(latitudeText, longitudeText) {
-  return `https://waze.com/ul?ll=${encodeURIComponent(`${latitudeText},${longitudeText}`)}&navigate=yes&utm_source=MyMapHKNav`;
+  return `https://waze.com/ul?ll=${encodeURIComponent(`${latitudeText},${longitudeText}`)}&navigate=yes&utm_source=HKPlaceNav`;
 }
 
 function buildAndroidIntentUrl(destination, fallbackUrl) {
@@ -608,9 +432,9 @@ function openAmapNavigation(destination) {
   const fallbackUrl = buildAmapWebUrl(destination.latitudeText, destination.longitudeText, destination.name);
   const placeName = encodeURIComponent(destination.name || "目的地");
   const appUrl = isIOS
-    ? `iosamap://navi?sourceApplication=MyMapHKNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
+    ? `iosamap://navi?sourceApplication=HKPlaceNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
     : isAndroid
-      ? `androidamap://navi?sourceApplication=MyMapHKNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
+      ? `androidamap://navi?sourceApplication=HKPlaceNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
       : fallbackUrl;
 
   openWithFallback(appUrl, fallbackUrl);
@@ -794,13 +618,11 @@ function toRadians(value) {
   return value * (Math.PI / 180);
 }
 
-function setReadyDestination(destination, labelText, announcement) {
+function setReadyDestination(destination, announcement) {
   readyDestination = {
     ...destination,
     name: destination.name || "目的地",
   };
-  pasteButton.classList.add("is-ready");
-  pasteLabel.textContent = labelText;
   googleButton.disabled = false;
   amapButton.disabled = false;
   wazeButton.disabled = false;
@@ -809,8 +631,6 @@ function setReadyDestination(destination, labelText, announcement) {
 
 function resetState() {
   readyDestination = null;
-  pasteButton.classList.remove("is-ready");
-  pasteLabel.textContent = "貼上";
   googleButton.disabled = true;
   amapButton.disabled = true;
   wazeButton.disabled = true;
@@ -881,14 +701,6 @@ function getSearchErrorMessage(error) {
   }
 
   return "未能連接政府地圖資料，請稍後再試。";
-}
-
-function isEditableTarget(target) {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return target.matches("input, textarea, [contenteditable='true']");
 }
 
 function announce(message) {

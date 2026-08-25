@@ -4,7 +4,6 @@
   --ink: #101820;
   --muted: #5e6872;
   --button: rgba(255, 255, 255, 0.92);
-  --button-ready: #101820;
   --field-border: rgba(16, 24, 32, 0.12);
   --error: #a60000;
   --shadow: 0 24px 50px rgba(16, 24, 32, 0.16);
@@ -34,7 +33,6 @@ body.theme-dark {
   --ink: #f3f7fb;
   --muted: #bac6d2;
   --button: rgba(25, 34, 44, 0.92);
-  --button-ready: #edf4fb;
   --field-border: rgba(255, 255, 255, 0.16);
   --error: #ffb4ab;
   --shadow: 0 24px 50px rgba(0, 0, 0, 0.34);
@@ -208,40 +206,10 @@ body.theme-dark .search-button {
   cursor: not-allowed;
 }
 
-.paste-button,
 .maps-button {
-  min-height: 108px;
   border-radius: 30px;
   background: var(--button);
   box-shadow: var(--shadow);
-}
-
-.paste-button {
-  padding: 0 28px;
-  display: grid;
-  place-items: center;
-  text-align: center;
-}
-
-.paste-button.is-ready {
-  background: var(--button-ready);
-  box-shadow: var(--shadow-strong);
-}
-
-.paste-label {
-  display: block;
-  font-size: clamp(2rem, 7vw, 2.6rem);
-  font-weight: 800;
-  letter-spacing: -0.05em;
-  color: var(--ink);
-}
-
-.paste-button.is-ready .paste-label {
-  color: #ffffff;
-}
-
-body.theme-dark .paste-button.is-ready .paste-label {
-  color: #101820;
 }
 
 .maps-button {
