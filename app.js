@@ -405,11 +405,11 @@ function buildGoogleMapsDirectionUrl(latitudeText, longitudeText) {
 
 function buildAmapWebUrl(latitudeText, longitudeText, name) {
   const destination = `${longitudeText},${latitudeText},${name || "目的地"}`;
-  return `https://uri.amap.com/navigation?to=${encodeURIComponent(destination)}&mode=car&policy=0&src=HKPlaceNav`;
+  return `https://uri.amap.com/navigation?to=${encodeURIComponent(destination)}&mode=car&policy=0&src=HKQuickNav`;
 }
 
 function buildWazeUrl(latitudeText, longitudeText) {
-  return `https://waze.com/ul?ll=${encodeURIComponent(`${latitudeText},${longitudeText}`)}&navigate=yes&utm_source=HKPlaceNav`;
+  return `https://waze.com/ul?ll=${encodeURIComponent(`${latitudeText},${longitudeText}`)}&navigate=yes&utm_source=HKQuickNav`;
 }
 
 function buildAndroidIntentUrl(destination, fallbackUrl) {
@@ -432,9 +432,9 @@ function openAmapNavigation(destination) {
   const fallbackUrl = buildAmapWebUrl(destination.latitudeText, destination.longitudeText, destination.name);
   const placeName = encodeURIComponent(destination.name || "目的地");
   const appUrl = isIOS
-    ? `iosamap://navi?sourceApplication=HKPlaceNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
+    ? `iosamap://navi?sourceApplication=HKQuickNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
     : isAndroid
-      ? `androidamap://navi?sourceApplication=HKPlaceNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
+      ? `androidamap://navi?sourceApplication=HKQuickNav&poiname=${placeName}&lat=${encodeURIComponent(destination.latitudeText)}&lon=${encodeURIComponent(destination.longitudeText)}&dev=1&style=0`
       : fallbackUrl;
 
   openWithFallback(appUrl, fallbackUrl);
