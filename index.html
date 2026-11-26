@@ -3,43 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#101820">
+  <meta name="theme-color" content="#ffffff">
   <meta name="application-name" content="HK QuickNav">
   <meta name="apple-mobile-web-app-title" content="HK QuickNav">
   <title>HK QuickNav</title>
+  <script>
+    (function () {
+      try {
+        var r = Math.PI / 180;
+        var msDay = 86400000;
+        var jEpoch = 2440588;
+        var j2000 = 2451545;
+        var hkOffsetMs = 8 * 3600000;
+        var parts = function (d) {
+          var hk = new Date(d.valueOf() + hkOffsetMs);
+          return {
+            y: hk.getUTCFullYear(),
+            m: hk.getUTCMonth(),
+            d: hk.getUTCDate(),
+            mins: hk.getUTCHours() * 60 + hk.getUTCMinutes() + hk.getUTCSeconds() / 60
+          };
+        };
+        var now = parts(new Date());
+        var solar = new Date(Date.UTC(now.y, now.m, now.d, 4, 0, 0));
+        var lonW = -114.1694 * r;
+        var lat = 22.3193 * r;
+        var days = (solar.valueOf() / msDay) - 0.5 + jEpoch - j2000;
+        var n = Math.round(days - 0.0009 - (lonW / (2 * Math.PI)));
+        var ds = 0.0009 + (lonW / (2 * Math.PI)) + n;
+        var M = (357.5291 + 0.98560028 * ds) * r;
+        var C = (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M)) * r;
+        var L = M + C + 102.9372 * r + Math.PI;
+        var dec = Math.asin(Math.sin(23.4397 * r) * Math.sin(L));
+        var jNoon = j2000 + ds + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+        var w0 = Math.acos((Math.sin(-0.833 * r) - Math.sin(lat) * Math.sin(dec)) / (Math.cos(lat) * Math.cos(dec)));
+        var dsSet = 0.0009 + ((w0 + lonW) / (2 * Math.PI)) + n;
+        var jSet = j2000 + dsSet + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L);
+        var jRise = jNoon - (jSet - jNoon);
+        var toMins = function (j) { return parts(new Date((j + 0.5 - jEpoch) * msDay)).mins; };
+        var isDark = now.mins < toMins(jRise) || now.mins >= toMins(jSet);
+        document.documentElement.classList.toggle("theme-dark", isDark);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute("content", isDark ? "#000000" : "#ffffff");
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <main class="app-shell">
-    <div class="button-stack">
-      <form id="search-form" class="search-form" role="search" aria-label="搜尋香港地點">
-        <label class="sr-only" for="place-input">輸入地點</label>
-        <div class="search-box">
-          <input id="place-input" class="place-input" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" maxlength="60" placeholder="輸入地點">
-          <button id="search-button" class="action-button search-button" type="submit">搜尋</button>
+    <section class="button-stack win95-window" aria-label="HK QuickNav">
+      <header class="win95-titlebar">
+        <div class="win95-title-left">
+          <span class="win95-badge" aria-hidden="true">N</span>
+          <span class="win95-title">HK QuickNav</span>
         </div>
-        <p id="search-status" class="search-status" aria-live="polite" hidden></p>
-        <div id="search-results" class="search-results" hidden></div>
-      </form>
+        <div class="win95-controls" aria-hidden="true">
+          <span class="win95-ctrl">_</span>
+          <span class="win95-ctrl">□</span>
+          <span class="win95-ctrl">×</span>
+        </div>
+      </header>
 
-      <div class="map-row">
-        <button id="waze-button" class="action-button maps-button waze-button" type="button" aria-label="使用 Waze 導航" disabled>
-          <img class="map-icon" src="./icon/Waze.png" alt="" aria-hidden="true">
-          <span class="sr-only">Waze</span>
-        </button>
+      <div class="win95-body">
+        <form id="search-form" class="search-form" role="search" aria-label="搜尋香港地點">
+          <label class="sr-only" for="place-input">輸入地點</label>
+          <div class="search-box">
+            <input id="place-input" class="place-input" type="search" inputmode="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" maxlength="60" placeholder="輸入地點">
+            <button id="search-button" class="action-button search-button" type="submit">搜尋</button>
+          </div>
+          <p id="search-status" class="search-status" aria-live="polite" hidden></p>
+          <div id="search-results" class="search-results" hidden></div>
+        </form>
 
-        <button id="google-button" class="action-button maps-button google-button" type="button" aria-label="使用 Google 地圖導航" disabled>
-          <img class="map-icon" src="./icon/GoogleMaps.png" alt="" aria-hidden="true">
-          <span class="sr-only">Google 地圖</span>
-        </button>
+        <div class="map-row">
+          <button id="waze-button" class="action-button maps-button waze-button" type="button" aria-label="使用 Waze 導航" disabled>
+            <img class="map-icon" src="./icon/Waze.png" width="54" height="54" alt="" aria-hidden="true">
+            <span class="sr-only">Waze</span>
+          </button>
 
-        <button id="amap-button" class="action-button maps-button amap-button" type="button" aria-label="使用高德地圖導航" disabled>
-          <img class="map-icon" src="./icon/AMP.png" alt="" aria-hidden="true">
-          <span class="sr-only">高德地圖</span>
-        </button>
+          <button id="google-button" class="action-button maps-button google-button" type="button" aria-label="使用 Google 地圖導航" disabled>
+            <img class="map-icon" src="./icon/GoogleMaps.png" width="54" height="54" alt="" aria-hidden="true">
+            <span class="sr-only">Google 地圖</span>
+          </button>
+
+          <button id="amap-button" class="action-button maps-button amap-button" type="button" aria-label="使用高德地圖導航" disabled>
+            <img class="map-icon" src="./icon/AMP.png" width="54" height="54" alt="" aria-hidden="true">
+            <span class="sr-only">高德地圖</span>
+          </button>
+        </div>
       </div>
-
-    </div>
+    </section>
 
     <p id="live-region" class="sr-only" aria-live="polite"></p>
   </main>
